@@ -11,10 +11,10 @@ export function LogCard({ title, log }) {
       }, [log]);
 
   return (
-    <Card title={title} sectioned>
+    <Card title={title || " Update Log"} sectioned>
       
-        <div style={{ height: "250px", overflowY: "auto" }} ref={scrollContainerRef}>
-          {log.map((item, index) => (
+        <div style={{ height: "175px", overflowY: "auto", border: '1px solid #D8DCDD', borderRadius: '15px', padding: '15px' }} ref={scrollContainerRef}>
+          {log && log.map((item, index) => (
             <p key={index} style={{color: item.color}}>{item.message}</p>
           ))}
         </div>

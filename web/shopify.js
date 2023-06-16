@@ -4,6 +4,10 @@ import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlit
 import { restResources } from "@shopify/shopify-api/rest/admin/2023-04";
 
 const DB_PATH = `${process.cwd()}/database.sqlite`;
+const PORT = parseInt(
+  process.env.BACKEND_PORT || process.env.PORT || "3000",
+  10
+);
 
 // The transactions with Shopify will always be marked as test transactions, unless NODE_ENV is production.
 // See the ensureBilling helper to learn more about billing in this template.
@@ -18,6 +22,11 @@ const billingConfig = {
 
 const shopify = shopifyApp({
   api: {
+    //apiKey: 'de5fc0a10f6476f9f87e794d25b320e9',
+    //apiSecretKey: '61e49859ae584003fd4912077f8a16d4',
+    //scopes: ["write_products,write_inventory,read_product_listings,write_product_listings"],
+    //hostScheme: 'http',
+    hostName: `localhost:${PORT}`,
     apiVersion: LATEST_API_VERSION,
     restResources,
     billing: undefined, // or replace with billingConfig above to enable example billing

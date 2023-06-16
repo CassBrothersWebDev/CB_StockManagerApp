@@ -1,3 +1,16 @@
+# Cass Brothers Stock Management App
+Developed by Gavin Bentley for Cass Brothers
+
+This app uses the existing 'Petersham Supplier Stock Counts' excel sheet to update the inventory on the site, then uses that information to shift products with stock and newer products to the top of collections.
+
+- Collection and Product data need to be uploaded to the app to include new products or collections.
+- Leave collection selection blank or select "All" to run through and update every collection.
+- Using the log window you should be able to see all products/collections being updated and any issues that may arise. 
+- Products need to have 'Track quantity' option enabled for this to function.
+
+
+Original read me from template used below:
+
 # Shopify App Template - Node
 
 This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using Node and React. It contains the basics for building a Shopify app.

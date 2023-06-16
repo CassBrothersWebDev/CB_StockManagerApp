@@ -12,37 +12,16 @@ import { useAuthenticatedFetch, useAppPost } from "../hooks";
 import { NoteMinor } from "@shopify/polaris-icons";
 import { read, utils } from "xlsx";
 import { LogCard } from "./LogCard";
-import inventoryData from "./data/InventoryMap.json";
 
-export function UploadStock() {
+export function UploadStock({ updateTitleText, appendToLogText }) {
   const emptyToastProps = { content: null };
   const [isLoading, setIsLoading] = useState(false);
   const [toastProps, setToastProps] = useState(emptyToastProps);
   const fetch = useAuthenticatedFetch();
   const { t } = useTranslation();
   const [files, setFiles] = useState([]);
-  const [titleText, setTitleText] = useState("");
-  const [logText, setLogText] = useState([]);
   const [currentData, setCurrentData] = useState();
-
-  const addLog = (newLog) => {
-    setLogText((prevLog) =>
-      prevLog.concat({ ...newLog, color: getColorByType(newLog.type) })
-    );
-  };
-
-  function getColorByType(type) {
-    switch (type) {
-      case "error":
-        return "red";
-      case "info":
-        return "black";
-      case "success":
-        return "green";
-      default:
-        return "inherit"; // Fallback color if type is not recognized
-    }
-  }
+  
 
   const toastMarkup = toastProps.content && !isRefetchingCount && (
     <Toast {...toastProps} onDismiss={() => setToastProps(emptyToastProps)} />
@@ -51,32 +30,45 @@ export function UploadStock() {
   const handleUpdate = async () => {
     try {
       setIsLoading(true);
+      // Fetch product data from the endpoint
+      const response = await fetch('/api/product-data');
+      if (!response.ok) {
+        throw new Error('Error fetching product data');
+      }
+      const jsonData = await response.json();
+      const productInfo = jsonData;
       for (const file of files) {
-        setTitleText("Processing Stock Sheet");
+        updateTitleText("Processing Stock Sheets");
         const fileData = await file.arrayBuffer();
         const stockBook = read(fileData, { type: "array" });
         const sheetNames = stockBook.SheetNames;
         console.log("Processing all worksheets");
-        addLog({ message: "Processing all worksheets", type: "success" });
         for (const sheetName of sheetNames) {
           console.log(sheetName);
-          addLog({
+          appendToLogText({
             message: "Processing " + sheetName + " sheet",
             type: "info",
           });
-          await processStockSheet(sheetName, stockBook, performUpdateRequest);
+          await processStockSheet(sheetName, stockBook, productInfo, performUpdateRequest);
         }
       }
+      appendToLogText({
+        message: "Completed stock sheet processing",
+        type: "success",
+      });
       setIsLoading(false);
     } catch (error) {
       console.log(error);
+      appendToLogText({
+        message: "Error processing " + sheetName + ": " + error,
+        type: "error",
+      });
       // Handle the error
     }
   };
 
-  async function processStockSheet(worksheetName, stockBook) {
-    // Get Inventory Map data from file
-    const productInfo = inventoryData.Products;
+  async function processStockSheet(worksheetName, stockBook, productInfo) {
+    
 
     const worksheet = stockBook.Sheets[worksheetName];
     if (!worksheet) {
@@ -160,14 +152,14 @@ export function UploadStock() {
       if (typeof dayDiff === "number" && dayDiff < 90) {
         // Ignore if no SKU found in SKU Column
         if (stockData[i][skuColumnKey] !== undefined) {
-          if (productIds !== undefined && quantityToUpdate !== null) {
+          if (productIds !== undefined && quantityToUpdate !== null && sku !== undefined) {
             // **********
             // Update the Inventory
             // **********
             const invItemID = productIds["Variant Inventory Item ID"];
             const productId = productIds["ID"];
 
-            addLog({
+            appendToLogText({
               message: `Updating ${sku} (${quantityToUpdate})`,
               type: "info",
             });
@@ -182,7 +174,8 @@ export function UploadStock() {
             // If product is flagged as discontinued and stock has ran out, set product to draft.
             // **********
             if (stockData[i].A === "Discontinued" && quantityToUpdate === 0) {
-              //setToDraft(productIds);
+              
+              await setToDraft(productIds);
             }
           } else {
             //logger.error(`Unable to Update ${sku}`);
@@ -190,6 +183,7 @@ export function UploadStock() {
         }
       }
     }
+    appendToLogText({message: `Processed ${worksheetName}`, type: 'success'});
   }
 
   // Function to convert serial number to date string
@@ -210,11 +204,12 @@ export function UploadStock() {
       onSuccess: (response) => {
         console.log("Request:", response);
         if (response.success === false) {
-          addLog({ message: response.error, type: "error" });
+          appendToLogText({ message: response.error, type: "error" });
         }
       },
     },
   });
+  
 
   async function performUpdateRequest(
     skuValue,
@@ -242,6 +237,34 @@ export function UploadStock() {
     });
   }
 
+  async function setToDraft(
+    productIds
+  ) {
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        try {
+          
+          appendToLogText({message: `Drafting Product ${productIds["Variant SKU"]}`, type: 'info'})
+          
+
+          await fetch('/api/draft-product', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: productIds["ID"] }),
+          });
+
+          resolve();
+        } catch (error) {
+          console.log("Error occurred while making the API call:", error);
+          appendToLogText({ message: `Error occurred while making the API call: ${error}`, type: 'error'});
+          resolve(); // Resolve even if an error occurs to proceed with the next request
+        }
+      }, 1000 / 2); // 2 requests per second
+    });
+  }
+
   const handleDropZoneDrop = useCallback(
     (dropFiles, acceptedFiles, rejectedFiles) =>
       setFiles((files) => [...files, ...acceptedFiles]),
@@ -250,7 +273,7 @@ export function UploadStock() {
 
   const fileUpload = !files.length && <DropZone.FileUpload />;
   const uploadedFiles = files.length > 0 && (
-    <div style={{ padding: "0" }}>
+    <div style={{ padding: "1.25rem" }}>
       <VerticalStack vertical>
         {files.map((file, index) => (
           <VerticalStack alignment="center" key={index}>
@@ -279,9 +302,9 @@ export function UploadStock() {
           loading: isLoading,
         }}
       >
-        <Text variant="bodyMd" as="p" fontWeight="semibold">
+        <Text variant="bodyMd" as="p" fontWeight="normal">
           {
-            "Upload 'Petersham Supplier Stock Count.xlsx' below to update inventory from all sheets"
+            "Upload 'Petersham Supplier Stock Count.xlsx' below to update inventory levels"
           }
         </Text>
 
@@ -290,7 +313,7 @@ export function UploadStock() {
           {fileUpload}
         </DropZone>
       </Card>
-      <LogCard title={titleText} log={logText} />
+      
     </>
   );
 }

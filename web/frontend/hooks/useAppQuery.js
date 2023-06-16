@@ -30,9 +30,10 @@ export const useAppQuery = ({ url, fetchInit = {}, reactQueryOptions }) => {
 };
 
 export const useAppPost = ({ url, data, fetchInit = {}, reactQueryOptions }) => {
-  
+ 
   const authenticatedFetch = useAuthenticatedFetch();
 
+  //console.log(data);
   const fetch = useMemo(() => {
     return async () => {
       const response = await authenticatedFetch(url, {
